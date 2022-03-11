@@ -6,5 +6,7 @@
 *.development.json
 
 # ignore any file with my tenant name in the file name
-*.requirements.zip
+*requirements.zip
 
+# ignore any log files
+deploymentlogs/*

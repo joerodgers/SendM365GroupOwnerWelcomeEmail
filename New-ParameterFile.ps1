@@ -136,4 +136,4 @@ function New-ParameterFile
 New-ParameterFile `
     -InputPath  "$PSScriptRoot\resources\azure-deploy.json" `
     -OutputPath "$PSScriptRoot\resources\azure-deploy-parameters.json" `
-    -Environment Production, Development, Test -Force
+    -Environment Production, Development, Test

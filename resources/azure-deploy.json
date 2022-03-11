@@ -385,7 +385,7 @@
                                     {
                                         "name": "Azure Queue Message",
                                         "type": "string",
-                                        "value": "{\n  \"GroupId\" : \"@{triggerBody()?['groupId']}\" \n}"
+                                        "value": "{\n  \"GroupId\" : \"@{triggerBody()?['groupId']}\",\n  \"SiteUrl\" : \"@{triggerBody()?['webUrl']}\" \n}"
                                     }
                                 ]
                             }
@@ -528,14 +528,14 @@
                         },
                         "Send_an_email_from_a_shared_mailbox_(V2)": {
                             "runAfter": {
-                                "Initialize_variable_-_Email_Message_Mailbox": [
+                                "Initialize_variable_-_Email_Message_To_Address": [
                                     "Succeeded"
                                 ]
                             },
                             "type": "ApiConnection",
                             "inputs": {
                                 "body": {
-                                "Body": "<p>@{variables('Email Message Subject')}</p>",
+                                "Body": "<p>@{variables('Email Message Body')}</p>",
                                 "MailboxAddress": "@variables('Email Message Mailbox')",
                                 "Subject": "@variables('Email Message Subject')",
                                 "To": "@variables('Email Message To Address')"

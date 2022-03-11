@@ -51,14 +51,13 @@ if( Test-Path -Path $templatePath -PathType Leaf )
                              ProvisioningState = $deployment.ProvisioningState
                              Timestamp         = $deployment.Timestamp.ToLocalTime().ToString("yyyy-MM-ddTHH-mm-ss")
                              Mode              = $deployment.Mode
-
                          }
     
     $deployment.Outputs.GetEnumerator() | ForEach-Object { $deploymentResults | Add-Member -MemberType NoteProperty -Name $_.Key -Value $_.value.value }
 
     New-Item -Path "$PSScriptRoot\deploymentlogs" -ItemType Directory -ErrorAction Ignore | Out-Null
 
-    $deploymentResults | Export-Csv -Path "deploymentlogs\deploymentoutput_$($deploymentResults.Timestamp).log" -NoTypeInformation
+    $deploymentResults | Export-Csv -Path "$PSScriptRoot\deploymentlogs\deploymentoutput_$($deploymentResults.Timestamp).log" -NoTypeInformation
 }
 #>
 
