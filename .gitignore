@@ -1,0 +1,10 @@
+﻿
+# ignore the certificates
+*.pfx
+
+# ignore any file with my tenant name in the file name
+*.development.json
+
+# ignore any file with my tenant name in the file name
+*.requirements.zip
+

@@ -1,0 +1,37 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "tenantId": {
+            "value": "Prompt"
+        },
+        "clientId": {
+            "value": "Prompt"
+        },
+        "certificateThumbprint": {
+            "value": "Prompt"
+        },
+        "certificatePfxPassword": {
+            "value": "Prompt"
+        },
+        "certificatePfxBase64": {
+            "value": "Prompt"
+        },
+        "mailboxAddress": {
+            "value": "Prompt"
+        },
+        "emailSubject": {
+            "value": "Prompt"
+        },
+        "emailBody": {
+            "value": "Prompt"
+        },
+        "fallbackEmailAddress": {
+            "value": "Prompt"
+        },
+        "functionCode": {
+            "value": "Prompt"
+        }
+    }
+}
+

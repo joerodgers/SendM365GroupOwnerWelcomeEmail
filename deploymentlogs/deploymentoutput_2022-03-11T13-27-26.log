@@ -1,0 +1,13 @@
+
+
+DeploymentName           : azure-deploy
+ResourceGroupName        : RG-SPOWELCOMEEMAIL-NPROD-USEAST
+ProvisioningState        : Succeeded
+Timestamp                : 2022-03-11T13-27-26
+Mode                     : Incremental
+queueMesssageLogicAppUri : https://prod-24.eastus.logic.azure.com:443/workflows/29c0d8b7bffe4c41bc3bbbeddb6c8541/triggers/manual/paths/invoke?api-version=2019-05-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JT9-T0xWEgO_vg9PyGc5-5T2BaxZDik2tzeOVCe_UMI
+sendEmailLogicAppUri     : https://prod-37.eastus.logic.azure.com:443/workflows/79bc81e15c0442c1b70b292c82e5aa6f/triggers/manual/paths/invoke?api-version=2019-05-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Xq2oLRyMh1aV4CMZcTltE2dGzmW2qFTdE4npjLNeSXc
+
+
+
+
