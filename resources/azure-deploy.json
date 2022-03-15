@@ -73,13 +73,16 @@
         "storageAccountApiConnectionName": "[format('apiconnection-storage-{0}', uniqueString(resourceGroup().id))]",
         "office365ApiConnectionName": "[format('apiconnection-office365-{0}', uniqueString(resourceGroup().id))]",
         "applicationName": "[format('application-{0}', uniqueString(resourceGroup().id))]",
-        "functionAppName": "[format('function-{0}', uniqueString(resourceGroup().id))]",
+        "functionAppName": "[format('functionapp-{0}', uniqueString(resourceGroup().id))]",
+        "applicationInsightsName": "[format('appinsights-{0}', uniqueString(resourceGroup().id))]",
+        "logAnalyticsName": "[format('workspace-{0}', uniqueString(resourceGroup().id))]",
         "functionName": "[format('function-{0}', 'SendEmailToGroupOwners')]",
         "queueMsgLogicAppName": "[format('logic-queuemsg-{0}', uniqueString(resourceGroup().id))]",
         "sendEmailLogicAppName": "[format('logic-sendemail-{0}', uniqueString(resourceGroup().id))]",
         "storageAccountName": "[format('storageacct{0}', uniqueString(resourceGroup().id))]"
     },
     "resources": [
+        // storage account
         {
             "type": "Microsoft.Storage/storageAccounts",
             "name": "[variables('storageAccountName')]",
@@ -89,8 +92,19 @@
             "sku": {
                 "name": "Standard_LRS",
                 "tier": "Standard"
-            }
+            },
+            "properties": {
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": true,
+                "supportsHttpsTrafficOnly": true,
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "resourceAccessRules": [],
+                    "defaultAction": "Allow"
+                }
+            }            
         },
+        // queue services
         {
             "type": "Microsoft.Storage/storageAccounts/queueServices",
             "apiVersion": "2021-06-01",
@@ -102,6 +116,7 @@
                 "metadata": {}
             }
         },
+        // queue
         {
             "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
             "apiVersion": "2021-08-01",
@@ -114,6 +129,7 @@
                 "metadata": {}
             }
         },
+        // poison queue
         {
             "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
             "apiVersion": "2021-08-01",
@@ -126,6 +142,7 @@
                 "metadata": {}
             }
         },
+        // application
         {
             "type": "Microsoft.Web/serverfarms",
             "name": "[variables('applicationName')]",
@@ -139,6 +156,7 @@
                 "name": "[variables('applicationName')]"
             }
         },
+        // function app
         {
             "name": "[variables('functionAppName')]",
             "type": "Microsoft.Web/sites",
@@ -148,11 +166,13 @@
             "dependsOn": [
                 "[resourceId('Microsoft.Web/serverfarms', variables('applicationName'))]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
-                "[resourceId('Microsoft.Logic/workflows', variables('sendEmailLogicAppName'))]"
+                "[resourceId('Microsoft.Logic/workflows', variables('sendEmailLogicAppName'))]",
+                "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
             ],
             "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('applicationName'))]",
                 "siteConfig": {
+                    "powerShellVersion": "~7",
                     "appSettings": [
                         {
                             "name": "AzureWebJobsStorage",
@@ -165,6 +185,10 @@
                         {
                             "name": "WEBSITE_CONTENTSHARE",
                             "value": "[toLower(variables('functionAppName'))]"
+                        },
+                        {
+                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                            "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')), '2020-02-02-preview').InstrumentationKey]"
                         },
                         {
                             "name": "FUNCTIONS_EXTENSION_VERSION",
@@ -202,10 +226,15 @@
                 }
             }
         },
+        // azure function
         {
+            "name": "[format('{0}/{1}', variables('functionAppName'), variables('functionName'))]",
             "type": "Microsoft.Web/sites/functions",
             "apiVersion": "2020-12-01",
-            "name": "[format('{0}/{1}', variables('functionAppName'), variables('functionName'))]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+            ],
             "properties": {
                 "name": "[variables('functionName')]",
                 "config": {
@@ -220,15 +249,13 @@
                         }
                     ]
                 },
+                "language": "powershell",
                 "files": {
                     "run.ps1": "[parameters('functionCode')]"
-                },
-                "language": "powershell"
-            },
-            "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
-            ]
+                }
+            }
         },
+        // certificate
         {
             "name": "[parameters('certificateThumbprint')]",
             "type": "Microsoft.Web/certificates",
@@ -244,6 +271,7 @@
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('applicationName'))]"
             }
         },
+        // api connection - storage
         {
             "name": "[variables('storageAccountApiConnectionName')]",
             "type": "Microsoft.Web/connections",
@@ -282,6 +310,7 @@
                 ]
             }
         },
+        // api connection - office365
         {
             "name": "[variables('office365ApiConnectionName')]",
             "type": "Microsoft.Web/connections",
@@ -313,6 +342,7 @@
                 ]
             }
         },
+        // logic app - queue msg
         {
             "name": "[variables('queueMsgLogicAppName')]",
             "type": "Microsoft.Logic/workflows",
@@ -424,6 +454,7 @@
                 }
             }
         },
+        // logic ap - send email
         {
             "name": "[variables('sendEmailLogicAppName')]",
             "type": "Microsoft.Logic/workflows",
@@ -535,10 +566,10 @@
                             "type": "ApiConnection",
                             "inputs": {
                                 "body": {
-                                "Body": "<p>@{variables('Email Message Body')}</p>",
-                                "MailboxAddress": "@variables('Email Message Mailbox')",
-                                "Subject": "@variables('Email Message Subject')",
-                                "To": "@variables('Email Message To Address')"
+                                    "Body": "<p>@{variables('Email Message Body')}</p>",
+                                    "MailboxAddress": "@variables('Email Message Mailbox')",
+                                    "Subject": "@variables('Email Message Subject')",
+                                    "To": "@variables('Email Message To Address')"
                                 },
                                 "host": {
                                     "connection": {
@@ -558,11 +589,44 @@
                             "office365": {
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('office365ApiConnectionName'))]",
                                 "connectionName": "office365",
-                                "id":"[concat('subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+                                "id": "[concat('subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
                             }
                         }
                     }
                 }
+            }
+        },
+        // application insights
+        {
+            "type": "microsoft.insights/components",
+            "apiVersion": "2020-02-02-preview",
+            "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+            ],
+            "name": "[variables('applicationInsightsName')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "RetentionInDays": 90,
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]",
+                "IngestionMode": "LogAnalytics",
+                "Application_Type": "other",
+                "ApplicationId": "[variables('applicationInsightsName')]",
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+            }
+        },
+        // application insights workspace
+        {
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "apiVersion": "2020-08-01",
+            "name": "[variables('logAnalyticsName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "sku": {
+                    "name": "PerGB2018"
+                },
+                "retentionInDays": 90
             }
         }
     ],

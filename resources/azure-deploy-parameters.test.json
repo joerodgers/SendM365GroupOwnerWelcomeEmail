@@ -3,13 +3,13 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "tenantId": {
-            "value": "Prompt"
+            "value": "1316cd1f-b0c7-4253-a7f3-ccc9041aaaf9"
         },
         "clientId": {
-            "value": "Prompt"
+            "value": "8a6b10a8-40d3-4128-8dc6-9b8e49b6f6b7"
         },
         "certificateThumbprint": {
-            "value": "Prompt"
+            "value": "90e7de311c18da348c17419dba63b42c2198699a"
         },
         "certificatePfxPassword": {
             "value": "Prompt"

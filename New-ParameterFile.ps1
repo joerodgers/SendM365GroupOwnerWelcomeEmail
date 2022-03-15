@@ -133,7 +133,65 @@ function New-ParameterFile
     }
 }
 
+function Set-DefaultParameterFileValue
+{
+    [CmdletBinding()]
+    param 
+    (
+        [parameter(Mandatory=$false)]
+        [string] 
+        $Path,
+        
+        [parameter(Mandatory=$true)]
+        [HashTable] 
+        $Value
+    )
+
+    begin
+    {
+    }
+    process
+    {
+        # read in the template and convert to an object
+        $parameters = Get-Content -Path $Path -Raw -ErrorAction Stop | ConvertFrom-Json
+        
+        $members = $parameters.parameters.psobject.members | Where-Object -Property "MemberType" -eq "NoteProperty"
+
+        foreach( $kv in $Value.GetEnumerator() )
+        {
+            if( $member = $members | Where-Object -Property "Name" -EQ $kv.key )
+            {
+                $parameters.parameters."$($kv.key )".value = $kv.value
+            }
+            else
+            {
+                Write-Warning "Parameter not found: $($v.key)"
+            }
+        }
+
+        # $parameters | ConvertTo-Json -Depth 100 | Format-Json | Set-Content -Path $Path
+        $parameters | ConvertTo-Json -Depth 10 | Set-Content -Path $Path
+    }
+    end
+    {
+    }
+}
+
 New-ParameterFile `
     -InputPath  "$PSScriptRoot\resources\azure-deploy.json" `
     -OutputPath "$PSScriptRoot\resources\azure-deploy-parameters.json" `
     -Environment Production, Development, Test
+
+$parameters = @{
+    "clientId"               = $env:O365_CLIENTID
+    "tenantId"               = $env:O365_TENANTID
+    "certificateThumbprint"  = $env:O365_THUMBPRINT
+    "certificatePfxPassword" = $env:O365_CERT_PWD
+    "certificatePfxBase64"   = [System.Convert]::ToBase64String(( Get-Content -Path "$PSScriptRoot\resources\certificate.pfx" -Raw -Encoding Byte ))
+    "functionCode"           = (Get-Content -Path "$PSScriptRoot\resources\function.ps1" -Raw).ToString()
+}
+
+Set-DefaultParameterFileValue `
+    -Path  "$PSScriptRoot\resources\azure-deploy-parameters.development.json" `
+    -Value $parameters
+
