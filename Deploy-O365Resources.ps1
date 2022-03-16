@@ -56,13 +56,13 @@ $previewImageUrl  = "https://$tenant.sharepoint.com/SiteAssets/contoso-logo.jpeg
     }
 
 
-# create the site designs
+# create the site template
 
 if( -not (Get-PnPSiteDesign | Where-Object -Property "Title" -eq "Send Site Creation Notificiation" ) )
 {
     Write-Host "Provisioning Site Design: Send Site Creation Notificiation"
 
-    $design = Add-PnPSiteDesign `
+    $null = Add-PnPSiteDesign `
                     -Title           "Send Site Creation Notificiation"  `
                     -Description     "Sends the site owners a welcome notice" `
                     -ThumbnailUrl    $previewImageUrl `
@@ -70,15 +70,15 @@ if( -not (Get-PnPSiteDesign | Where-Object -Property "Title" -eq "Send Site Crea
                     -WebTemplate     "TeamSite" `
                     -IsDefault
 
-    Grant-PnPSiteDesignRights `
-        -Identity $design.Id `
-        -Principals "joe.rodgers@josrod.onmicrosoft.com", "c:0t.c|tenant|986b904f-0de9-416d-9fd9-7e5d8402e7c0" `
-        -Rights View
+    #Grant-PnPSiteDesignRights `
+    #    -Identity $design.Id `
+    #    -Principals "john.doe@contoso.com", "c:0t.c|tenant|986b904f-0de9-416d-9fd9-7e5d8402e7c0" `
+    #    -Rights View
 }
 
 <# 
 
-# Remove Solution Commands
+# remove script and template commands
 
     Get-PnPSiteDesign | Where-Object -Property "Title" -eq "Send Site Creation Notificiation" | Remove-PnPSiteDesign -Force
     Get-PnPSiteScript | Where-Object -Property "Title" -eq "Send Site Creation Notificiation" | Remove-PnPSiteScript -Force
