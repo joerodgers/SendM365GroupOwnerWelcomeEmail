@@ -18,13 +18,15 @@ param
 
 # parameter config
 
-    $clientId      = $env:SPO_CLIENTID
-    $thumbprint    = $env:SPO_THUMBPRINT
-    $tenantId      = $env:SPO_TENANTID
-    $logicAppUrl   = $env:SEND_EMAIL_ENDPOINT_URI
-    $failureEmail  = $env:FAILURE_EMAIL_ADDRESS
-    $groupId       = $QueueItem.GroupId
-    $siteUrl       = $QueueItem.SiteUrl
+    $clientId       = $env:SPO_CLIENTID
+    $thumbprint     = $env:SPO_THUMBPRINT
+    $tenantId       = $env:SPO_TENANTID
+    $logicAppUrl    = $env:SEND_EMAIL_ENDPOINT_URI
+    $failureEmail   = $env:FAILURE_EMAIL_ADDRESS
+    $groupId        = $QueueItem.GroupId
+    $siteUrl        = $QueueItem.SiteUrl
+    $launchDate     = $env:PRODUCTION_DATE
+    $pilotEmails    = if( $env:PILOT_EMAIL_ADDRESSES ) { $env:PILOT_EMAIL_ADDRESSES -split ";" }else{ @() }
 
     $telemetry.TrackTrace( "Function configuration: ClientId: $clientId Thumbprint: $thumbprint TenantId: $tenantId LogicAppUrl: $logicAppUrl FailureEmail: $failureEmail" )
     $telemetry.TrackTrace( "Parameter configuration: GroupId: $groupId SiteUrl: $siteUrl" )
@@ -41,6 +43,20 @@ param
         $telemetry.TrackEvent( "NotificationIgnored", $eventProperties )
         return
     }
+
+    if( [string]::IsNullOrWhiteSpace($launchDate) )
+    {
+        $telemetry.TrackTrace( "No launch date configured." )
+        $launchDate = [DateTime]::Today.AddDays(-1)
+    }
+
+    $pilotEmails = $pilotEmails | foreach-object { $_.Trim() }
+
+    if( $pilotEmails.Count -eq 0 )
+    {
+        $telemetry.TrackTrace( "No pilot emails configured." )
+    }
+
 
 # connect to Microsoft Graph
 
@@ -76,6 +92,23 @@ param
     catch
     {
         $telemetry.TrackException( $_.Exception )
+    }
+
+
+# short circut during pre-produciton phase
+
+    if( [DateTime]::Today -lt $launchDate -and $pilotEmails.Count -gt 0 )
+    {
+        $owneremails = ($owners.AdditionalProperties).mail
+
+        foreach( $owneremail in $owneremails )
+        {
+            if( $pilotEmails -notcontains $owneremail.Trim() )
+            {
+                $telemetry.TrackTrace( "Exiting due to invalid pre-production email: $owneremail" )
+                return
+            }
+        }
     }
 
 # parse group owners

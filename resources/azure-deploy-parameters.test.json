@@ -31,6 +31,12 @@
         },
         "functionCode": {
             "value": "Prompt"
+        },
+        "productionDate" : {
+            "value": "05/23/2022"
+        },
+        "pilotEmailAddresses" : {
+            "value": "john.doe@contoso.com;jane.doe@contoso.com"
         }
     }
 }

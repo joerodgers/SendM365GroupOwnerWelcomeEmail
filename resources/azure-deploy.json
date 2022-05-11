@@ -64,6 +64,20 @@
             "metadata": {
                 "description": "PowerShell code for the Azure Queue trigger function"
             }
+        },
+        "productionDate": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Date solution turns production."
+            }
+        },
+        "pilotEmailAddresses": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Semi-colon separated list of pilot email addresses."
+            }
         }
     },
     "functions": [
@@ -217,6 +231,14 @@
                         {
                             "name": "FAILURE_EMAIL_ADDRESS",
                             "value": "[parameters('fallbackEmailAddress')]"
+                        },
+                        {
+                            "name": "PRODUCTION_DATE",
+                            "value": "[parameters('productionDate')]"
+                        },
+                        {
+                            "name": "PILOT_EMAIL_ADDRESSES",
+                            "value": "[parameters('pilotEmailAddresses')]"
                         },
                         {
                             "name": "WEBSITE_LOAD_CERTIFICATES",
