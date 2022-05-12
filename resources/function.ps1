@@ -79,11 +79,15 @@ param
 
 # get group owners
 
+    $ownerEmails = @()
+
     try
     {
         $telemetry.TrackTrace( "Querying Microsoft Graph for GroupId $($groupId)" )
 
         $owners = @(Get-MgGroupOwner -GroupId $groupId -All)
+
+        $ownerEmails = @(($owners.AdditionalProperties).mail)
 
         $eventProperties.OwnerCount = $owners.Count
 
@@ -97,25 +101,30 @@ param
 
 # short circut during pre-produciton phase
 
-    if( [DateTime]::Today -lt $launchDate -and $pilotEmails.Count -gt 0 )
+    if( [DateTime]::Today -lt $launchDate -and $pilotEmails.Count -gt 0 -and $ownerEmails.Count -gt 0 )
     {
-        $owneremails = ($owners.AdditionalProperties).mail
+        $ownerEmailsTemp = @()
 
         foreach( $owneremail in $owneremails )
         {
-            if( $pilotEmails -notcontains $owneremail.Trim() )
+            if( $pilotEmails -contains $owneremail.Trim() )
             {
-                $telemetry.TrackTrace( "Exiting due to invalid pre-production email: $owneremail" )
-                return
+                $ownerEmailsTemp += $owneremail.Trim()
+            }
+            else 
+            {
+                $telemetry.TrackTrace( "Removing non-preview group owner email: $owneremail" )
             }
         }
+
+        $ownerEmails = $ownerEmailsTemp
     }
 
 # parse group owners
 
-    if( $owners.Count -gt 0 )
+    if( $ownerEmails.Count -gt 0 )
     {
-        $toAddresses = ($owners.AdditionalProperties).mail -join ";"
+        $toAddresses = $ownerEmails -join ";"
     }
     elseif( -not [string]::IsNullOrWhiteSpace($failureEmail) )
     {
@@ -125,7 +134,7 @@ param
 
 # send email
 
-    if( -not [string]::IsNullOrWhiteSpace($toAddresses) )
+    if( -not [string]::IsNullOrWhiteSpace($toAddresses.Trim()) )
     {
         $telemetry.TrackTrace( "Sending email notification to: $toAddresses" )
 
