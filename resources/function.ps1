@@ -25,7 +25,6 @@ param
     $failureEmail   = $env:FAILURE_EMAIL_ADDRESS
     $groupId        = $QueueItem.GroupId
     $siteUrl        = $QueueItem.SiteUrl
-    $launchDate     = $env:PRODUCTION_DATE
     $pilotEmails    = if( $env:PILOT_EMAIL_ADDRESSES ) { $env:PILOT_EMAIL_ADDRESSES -split ";" }else{ @() }
 
     $telemetry.TrackTrace( "Function configuration: ClientId: $clientId Thumbprint: $thumbprint TenantId: $tenantId LogicAppUrl: $logicAppUrl FailureEmail: $failureEmail" )
@@ -44,10 +43,13 @@ param
         return
     }
 
-    if( [string]::IsNullOrWhiteSpace($launchDate) )
+
+    $launchDate = [DateTime]::Today.AddDays(-1)
+    
+    if( -not [string]::IsNullOrWhiteSpace($env:PRODUCTION_DATE) )
     {
-        $telemetry.TrackTrace( "No launch date configured." )
-        $launchDate = [DateTime]::Today.AddDays(-1)
+        $launchDate = [DateTime]::TryParse($env:PRODUCTION_DATE)
+        $telemetry.TrackTrace( "Configured Launch datetime: $($launchDate.ToString())." )
     }
 
     $pilotEmails = $pilotEmails | foreach-object { $_.Trim() }
@@ -101,7 +103,7 @@ param
 
 # short circut during pre-produciton phase
 
-    if( [DateTime]::Today -lt $launchDate -and $pilotEmails.Count -gt 0 -and $ownerEmails.Count -gt 0 )
+    if( [DateTime]::Now -lt $launchDate -and $pilotEmails.Count -gt 0 -and $ownerEmails.Count -gt 0 )
     {
         $ownerEmailsTemp = @()
 
