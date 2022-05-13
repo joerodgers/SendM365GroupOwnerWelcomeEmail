@@ -108,7 +108,7 @@
             },
             "properties": {
                 "minimumTlsVersion": "TLS1_2",
-                "allowBlobPublicAccess": true,
+                "allowBlobPublicAccess": false,
                 "supportsHttpsTrafficOnly": true,
                 "networkAcls": {
                     "bypass": "AzureServices",
