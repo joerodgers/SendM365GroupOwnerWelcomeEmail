@@ -78,7 +78,7 @@
             "metadata": {
                 "description": "Semi-colon separated list of pilot email addresses."
             }
-        }
+        }    
     },
     "functions": [
     ],
@@ -96,7 +96,6 @@
         "storageAccountName": "[format('storageacct{0}', uniqueString(resourceGroup().id))]"
     },
     "resources": [
-        // storage account
         {
             "type": "Microsoft.Storage/storageAccounts",
             "name": "[variables('storageAccountName')]",
@@ -116,9 +115,8 @@
                     "resourceAccessRules": [],
                     "defaultAction": "Allow"
                 }
-            }            
+            }
         },
-        // queue services
         {
             "type": "Microsoft.Storage/storageAccounts/queueServices",
             "apiVersion": "2021-06-01",
@@ -130,7 +128,6 @@
                 "metadata": {}
             }
         },
-        // queue
         {
             "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
             "apiVersion": "2021-08-01",
@@ -143,7 +140,6 @@
                 "metadata": {}
             }
         },
-        // poison queue
         {
             "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
             "apiVersion": "2021-08-01",
@@ -156,7 +152,6 @@
                 "metadata": {}
             }
         },
-        // application
         {
             "type": "Microsoft.Web/serverfarms",
             "name": "[variables('applicationName')]",
@@ -170,7 +165,6 @@
                 "name": "[variables('applicationName')]"
             }
         },
-        // function app
         {
             "name": "[variables('functionAppName')]",
             "type": "Microsoft.Web/sites",
@@ -248,7 +242,6 @@
                 }
             }
         },
-        // azure function
         {
             "name": "[format('{0}/{1}', variables('functionAppName'), variables('functionName'))]",
             "type": "Microsoft.Web/sites/functions",
@@ -277,7 +270,6 @@
                 }
             }
         },
-        // certificate
         {
             "name": "[parameters('certificateThumbprint')]",
             "type": "Microsoft.Web/certificates",
@@ -293,7 +285,6 @@
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('applicationName'))]"
             }
         },
-        // api connection - storage
         {
             "name": "[variables('storageAccountApiConnectionName')]",
             "type": "Microsoft.Web/connections",
@@ -332,7 +323,6 @@
                 ]
             }
         },
-        // api connection - office365
         {
             "name": "[variables('office365ApiConnectionName')]",
             "type": "Microsoft.Web/connections",
@@ -364,7 +354,6 @@
                 ]
             }
         },
-        // logic app - queue msg
         {
             "name": "[variables('queueMsgLogicAppName')]",
             "type": "Microsoft.Logic/workflows",
@@ -476,7 +465,6 @@
                 }
             }
         },
-        // logic ap - send email
         {
             "name": "[variables('sendEmailLogicAppName')]",
             "type": "Microsoft.Logic/workflows",
@@ -618,7 +606,6 @@
                 }
             }
         },
-        // application insights
         {
             "type": "microsoft.insights/components",
             "apiVersion": "2020-02-02-preview",
@@ -638,7 +625,6 @@
                 "publicNetworkAccessForQuery": "Enabled"
             }
         },
-        // application insights workspace
         {
             "type": "Microsoft.OperationalInsights/workspaces",
             "apiVersion": "2020-08-01",
