@@ -48,8 +48,12 @@ param
     
     if( -not [string]::IsNullOrWhiteSpace($env:PRODUCTION_DATE) )
     {
-        $launchDate = [DateTime]::TryParse($env:PRODUCTION_DATE)
-        $telemetry.TrackTrace( "Configured Launch datetime: $($launchDate.ToString())." )
+        $launchDate = $null
+
+        if( [DateTime]::TryParse( $env:PRODUCTION_DATE, [ref] $launchDate ) )
+        {
+            $telemetry.TrackTrace( "Configured Launch datetime: $($launchDate.ToString())." )
+        }
     }
 
     $pilotEmails = $pilotEmails | foreach-object { $_.Trim() }
