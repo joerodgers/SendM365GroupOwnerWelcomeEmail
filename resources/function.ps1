@@ -87,6 +87,8 @@ param
     {
         $telemetry.TrackTrace( "Querying Microsoft Graph for GroupId $($groupId)" )
 
+        $group = Get-MgGroup -GroupId $groupId -Property "DisplayName"
+
         $owners = @(Get-MgGroupOwner -GroupId $groupId -All)
 
         $ownerEmails = @(($owners.AdditionalProperties).mail)
@@ -143,6 +145,7 @@ param
         $json = [PSCustomObject] @{ 
                     OwnerEmailAddresses = $toAddresses
                     SiteUrl             = $siteUrl
+                    DisplayName         = $group.DisplayName
                 } | ConvertTo-Json -Depth 3
 
         try 

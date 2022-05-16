@@ -496,6 +496,9 @@
                                         },
                                         "OwnerEmailAddresses": {
                                             "type": "string"
+                                        },
+                                        "DisplayName": {
+                                            "type": "string"
                                         }
                                     }
                                 }
