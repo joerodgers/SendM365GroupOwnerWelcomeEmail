@@ -22,13 +22,25 @@ param
     $thumbprint     = $env:SPO_THUMBPRINT
     $tenantId       = $env:SPO_TENANTID
     $logicAppUrl    = $env:SEND_EMAIL_ENDPOINT_URI
-    $failureEmail   = $env:FAILURE_EMAIL_ADDRESS
+    $failureEmail   = @($env:FAILURE_EMAIL_ADDRESS -split ";")
     $groupId        = $QueueItem.GroupId
     $siteUrl        = $QueueItem.SiteUrl
-    $pilotEmails    = if( $env:PILOT_EMAIL_ADDRESSES ) { $env:PILOT_EMAIL_ADDRESSES -split ";" }else{ @() }
+    $pilotEmails    = @($env:PILOT_EMAIL_ADDRESSES -split ";")
+    $productionDate = [DateTime]::Parse( $env:PRODUCTION_DATE )
 
-    $telemetry.TrackTrace( "Function configuration: ClientId: $clientId Thumbprint: $thumbprint TenantId: $tenantId LogicAppUrl: $logicAppUrl FailureEmail: $failureEmail" )
-    $telemetry.TrackTrace( "Parameter configuration: GroupId: $groupId SiteUrl: $siteUrl" )
+    $telemetry.TrackTrace( "Function configuration:
+                                ClientId:       $clientId
+                                Thumbprint:     $thumbprint
+                                TenantId:       $tenantId
+                                LogicAppUrl:    $logicAppUrl
+                                FailureEmail:   $failureEmail
+                                PilotEmails:    $($pilotEmails -join ';')
+                                ProductionDate: $productionDate" )
+ 
+    $telemetry.TrackTrace( "Execution Parameters:
+                                GroupId: $groupId
+                                SiteUrl: $siteUrl" )
+
 
     $eventProperties = New-Object 'System.Collections.Generic.Dictionary[string,string]'
     $eventProperties.Add( "GroupId", $groupId )
@@ -42,27 +54,6 @@ param
         $telemetry.TrackEvent( "NotificationIgnored", $eventProperties )
         return
     }
-
-
-    $launchDate = [DateTime]::Today.AddDays(-1)
-    
-    if( -not [string]::IsNullOrWhiteSpace($env:PRODUCTION_DATE) )
-    {
-        $launchDate = $null
-
-        if( [DateTime]::TryParse( $env:PRODUCTION_DATE, [ref] $launchDate ) )
-        {
-            $telemetry.TrackTrace( "Configured Launch datetime: $($launchDate.ToString())." )
-        }
-    }
-
-    $pilotEmails = $pilotEmails | foreach-object { $_.Trim() }
-
-    if( $pilotEmails.Count -eq 0 )
-    {
-        $telemetry.TrackTrace( "No pilot emails configured." )
-    }
-
 
 # connect to Microsoft Graph
 
@@ -85,69 +76,62 @@ param
 
 # get group owners
 
-    $ownerEmails = @()
+    $emails = @()
 
-    try
+    if( [Microsoft.Graph.PowerShell.Authentication.GraphSession]::Exists )
     {
-        $telemetry.TrackTrace( "Querying Microsoft Graph for GroupId $($groupId)" )
-
-        $group = Get-MgGroup -GroupId $groupId -Property "DisplayName"
-
-        $owners = @(Get-MgGroupOwner -GroupId $groupId -All)
-
-        $ownerEmails = @(($owners.AdditionalProperties).mail)
-
-        $eventProperties.OwnerCount = $owners.Count
-
-        $telemetry.TrackTrace( "Retrieved $($owners.Count) group owners from Microsoft Graph" )
-    }
-    catch
-    {
-        $telemetry.TrackException( $_.Exception )
+        try
+        {
+            $group  = Get-MgGroup -GroupId $groupId 
+            $emails = @(Get-MgGroupOwner -GroupId $groupId -All -Property mail).AdditionalProperties.mail
+   
+            $telemetry.TrackTrace( "Retrieved $($emails.Count) group owners from Microsoft Graph" )
+            $eventProperties.OwnerCount = $emails.Count
+        }
+        catch
+        {
+            $telemetry.TrackException( $_.Exception )
+        }        
     }
 
 
 # short circut during pre-produciton phase
 
-    if( [DateTime]::Now -lt $launchDate -and $pilotEmails.Count -gt 0 -and $ownerEmails.Count -gt 0 )
+    if( [DateTime]::Now -lt $productionDate -and $pilotEmails.Count -gt 0 -and $emails.Count -gt 0 )
     {
-        $ownerEmailsTemp = @()
+        $temp = @()
 
-        foreach( $owneremail in $owneremails )
+        foreach( $email in $emails )
         {
-            if( $pilotEmails -contains $owneremail.Trim() )
+            if( $pilotEmails -contains $email.Trim() )
             {
-                $ownerEmailsTemp += $owneremail.Trim()
+                $temp += $email.Trim()
             }
             else 
             {
-                $telemetry.TrackTrace( "Removing non-preview group owner email: $owneremail" )
+                $telemetry.TrackTrace( "Removing non-preview group owner email: $email" )
             }
         }
 
-        $ownerEmails = $ownerEmailsTemp
+        $emails = $temp
     }
+
 
 # parse group owners
 
-    if( $ownerEmails.Count -gt 0 )
+    if( $emails.Count -eq 0 -and $failureEmail.Count -gt 0 )
     {
-        $toAddresses = $ownerEmails -join ";"
-    }
-    elseif( -not [string]::IsNullOrWhiteSpace($failureEmail) )
-    {
-        $toAddresses = $failureEmail
+        $telemetry.TrackTrace( "Failing back to default email address for group: $groupId" )
+        $emails = $failureEmail
     }
 
 
 # send email
 
-    if( -not [string]::IsNullOrWhiteSpace($toAddresses.Trim()) )
+    if( $emails.Count -gt 0 )
     {
-        $telemetry.TrackTrace( "Sending email notification to: $toAddresses" )
-
         $json = [PSCustomObject] @{ 
-                    OwnerEmailAddresses = $toAddresses
+                    OwnerEmailAddresses = ($emails -join ";")
                     SiteUrl             = $siteUrl
                     DisplayName         = $group.DisplayName
                 } | ConvertTo-Json -Depth 3
