@@ -95,7 +95,7 @@ function New-ParameterFile
         
         [parameter(Mandatory=$false)]
         [string] 
-        $OutputPath = (Join-Path -Path $PSScriptRoot -ChildPath "azure-deploy-paramters.json"),
+        $OutputPath = (Join-Path -Path $PSScriptRoot -ChildPath "azure-deploy-parameters.json"),
 
         [parameter(Mandatory=$false)]
         [switch] 
@@ -201,7 +201,7 @@ function Set-DefaultParameterFileValue
 
         foreach( $kv in $Value.GetEnumerator() )
         {
-            if( $member = $members | Where-Object -Property "Name" -EQ $kv.key )
+            if( $members | Where-Object -Property "Name" -EQ $kv.key )
             {
                 $parameters.parameters."$($kv.key )".value = $kv.value
             }
@@ -211,8 +211,7 @@ function Set-DefaultParameterFileValue
             }
         }
 
-        # $parameters | ConvertTo-Json -Depth 100 | Format-Json | Set-Content -Path $Path
-        $parameters | ConvertTo-Json -Depth 10 | Set-Content -Path $Path
+        $parameters | ConvertTo-Json -Depth 10 | Format-Json | Set-Content -Path $Path
     }
     end
     {
