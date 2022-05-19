@@ -1,29 +1,91 @@
 ﻿#requires -modules "Az.Resources", "Az.Accounts", "Az.Websites"
 
+param
+(
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("Production", "Test", "Development")]
+    [string]
+    $Environment = "Development",
+
+    [Parameter(Mandatory=$true)]
+    [Guid]
+    $TenantId,
+
+    [Parameter(Mandatory=$true)]
+    [Guid]
+    $SubscriptionId,
+
+    [Parameter(Mandatory=$true)]
+    [string]
+    $ResourceGroup,
+
+    [Parameter(Mandatory=$false)]
+    [string]
+    $Location = "eastus"
+)
+
 [System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials 
 [System.Net.ServicePointManager]::SecurityProtocol   = [System.Net.SecurityProtocolType]::Tls12   
 
-Import-Module -Name "$PSScriptRoot\resources.psm1" -ErrorAction Stop -Force
+$ctx = Get-AzContext
 
-$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+if( $ctx.Tenant.Id -ne $TenantId.ToString() -or $ctx.Subscription.SubscriptionId -ne $SubscriptionId.ToString() )
+{
+    Write-Host "[$(Get-Date)] - Prompting for Azure credentials"
+    Login-AzAccount -Tenant $TenantId -WarningAction SilentlyContinue
 
+    $ctx = Get-AzContext
+}
 
-#Login-AzAccount -Tenant $env:MSFT_TENANTID -WarningAction SilentlyContinue
-#Select-AzSubscription -Subscription $env:MSFT_SUBSCRIPTIONID -WarningAction SilentlyContinue
+$subscription = Select-AzSubscription -Subscription $SubscriptionId -WarningAction SilentlyContinue
 
-$resourceGroup     = "RG-SPOWELCOMEEMAIL-NPROD2-USEAST"
+Write-Host "[$(Get-Date)] - Connected as: $($ctx.Account.Id)"
+Write-Host "[$(Get-Date)] - Subscription: $($subscription.Subscription.Name)"
+Write-Host "[$(Get-Date)] - Environment:  $Environment"
+
 $templatePath      = Join-Path -Path $PSScriptRoot -ChildPath "resources\azure-deploy.json"
-$parameterPath     = Join-Path -Path $PSScriptRoot -ChildPath "resources\azure-deploy-parameters.development.json"
+$parameterPath     = Join-Path -Path $PSScriptRoot -ChildPath "resources\azure-deploy-parameters.$Environment.json"
 $requirementsPath  = Join-Path -Path $PSScriptRoot -ChildPath "resources\requirements.psd1"
+$functionPath      = Join-Path -Path $PSScriptRoot -ChildPath "resources\function.ps1"
+
+# path validation
+
+    foreach( $path in @($templatePath, $parameterPath, $requirementsPath, $functionPath) )
+    {
+        if( -not (Test-Path -Path $path -PathType Leaf) )
+        {
+            Write-Error "Required file not found: $path"
+            return
+        }
+    }
+
+    if( -not (Test-Path -Path "$PSScriptRoot\deploymentlogs" -PathType Container) )
+    {
+        New-Item -ItemType Directory -Path "$PSScriptRoot\deploymentlogs"
+    }
+
+    Write-Host "[$(Get-Date)] - Template Path:     $templatePath"
+    Write-Host "[$(Get-Date)] - Parameter Path:    $parameterPath"
+    Write-Host "[$(Get-Date)] - Requirements Path: $requirementsPath"
+    Write-Host "[$(Get-Date)] - Function Path:     $functionPath"
+    Write-Host "[$(Get-Date)] - Log Path:          $PSScriptRoot\deploymentlogs"
+
+
+    if( -not (Get-AzResourceGroup -Name $ResourceGroup -Location $Location -ErrorAction SilentlyContinue) )
+    {
+        Write-Error "Resource group not found: $ResourceGroup"
+        return
+    }
 
 # start deployment
 
+    Write-Host 
     Write-Host "[$(Get-Date)] - Starting deployment"
      
     $deployment = New-AzResourceGroupDeployment `
-        -ResourceGroupName     $resourceGroup `
-        -TemplateFile          $templatePath `
-        -TemplateParameterFile $parameterPath
+                        -ResourceGroupName     $ResourceGroup `
+                        -TemplateFile          $templatePath `
+                        -TemplateParameterFile $parameterPath
 
     Write-Host "[$(Get-Date)] - Deployment $($deployment.ProvisioningState)"
 
@@ -32,29 +94,42 @@ $requirementsPath  = Join-Path -Path $PSScriptRoot -ChildPath "resources\require
     if( $deployment.ProvisioningState -ne "Succeeded" ) { return }
 
 
+
 # upload requirements.psd1 to configure modules for the Azure function
 
     Write-Host "[$(Get-Date)] - Deploying requirements.psd1"
 
     Compress-Archive `
-                -Path $requirementsPath `
+                -Path            $requirementsPath `
                 -DestinationPath "$PSScriptRoot\resources\requirements.zip" `
                 -Force
 
-    $null = Get-AzWebApp `
-                -ResourceGroupName $resourceGroup `
-                -Name              $deployment.Outputs.functionAppName.Value
-    
     $null = Publish-AzWebApp `
                 -ResourceGroupName $resourceGroup `
                 -Name              $deployment.Outputs.functionAppName.Value `
                 -ArchivePath       "$PSScriptRoot\resources\requirements.zip" `
                 -Force
 
-#>
+
+
+# upload function.ps1 for the Azure function
+
+    Write-Host "[$(Get-Date)] - Deploying function.ps1"
+
+    Compress-Archive `
+                -Path            $functionPath `
+                -DestinationPath "$PSScriptRoot\resources\function.zip" `
+                -Force
+
+    $null = Publish-AzWebApp `
+                -ResourceGroupName $resourceGroup `
+                -Name              $deployment.Outputs.functionAppName.Value `
+                -ArchivePath       "$PSScriptRoot\resources\function.zip" `
+                -Force
+
+
 
 # authorize api connections
-
 
     Write-Host "[$(Get-Date)] - Authorizing API Connections"
 

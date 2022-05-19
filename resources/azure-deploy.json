@@ -58,13 +58,6 @@
                 "description": "Fallback email address for email failed group owner lookup email notices"
             }
         },
-        "functionCode": {
-            "type": "string",
-            "defaultValue": "param($QueueItem, $TriggerMetadata)",
-            "metadata": {
-                "description": "PowerShell code for the Azure Queue trigger function"
-            }
-        },
         "productionDate": {
             "type": "string",
             "defaultValue": "",
@@ -207,6 +200,10 @@
                             "value": "powershell"
                         },
                         {
+                            "name": "WEBSITE_RUN_FROM_PACKAGE",
+                            "value": "1"
+                        },
+                        {
                             "name": "SPO_CLIENTID",
                             "value": "[parameters('clientId')]"
                         },
@@ -276,11 +273,7 @@
                         }
                     ]
                 },
-                "language": "powershell",
-                "files": {
-                    "run.ps1": "[parameters('functionCode')]"
-                }
-            }
+                "language": "powershell"            }
         },
         {
             "name": "[parameters('certificateThumbprint')]",

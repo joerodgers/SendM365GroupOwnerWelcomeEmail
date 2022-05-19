@@ -1,44 +1,87 @@
-﻿function Format-Json
+function Show-OAuthWindow
 {
     [CmdletBinding()]
     param 
     (
-        [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-        [String]
-        $json,
-
-        [Parameter(Mandatory=$false)]
-        [int]
-        $NumberSpaces = 4
-    ) 
+        [Parameter(Mandatory=$true)]
+        [System.Uri]
+        $Url
+    )
 
     begin
     {
-        $sb = New-Object System.Text.StringBuilder
-
-        $indent = 0;
+        Add-Type -AssemblyName System.Windows.Forms
     }
-    end
+    process 
     {
-        $lines =  $json -Split [System.Environment]::NewLine
+        $web = New-Object -TypeName System.Windows.Forms.WebBrowser -Property @{
+            Width  = 420
+            Height = 600
+            Url    = $Url
+        }
+    
+        $web.ScriptErrorsSuppressed = $true
+    
+        $web.Add_DocumentCompleted( {
+                if ($web.Url.AbsoluteUri -match "error=[^&]*|code=[^&]*") { $form.Close() }
+            })
 
-        foreach( $line in $lines )
+        $form = New-Object -TypeName System.Windows.Forms.Form -Property @{
+            Width  = 440
+            Height = 640
+        }
+    
+        $form.Controls.Add($web)
+    
+        $form.Add_Shown( {
+                $form.BringToFront()
+                $null = $form.Focus()
+                $form.Activate()
+                $web.Navigate($Url)
+            })
+
+        $null = $form.ShowDialog()
+
+        $queryOutput = [System.Web.HttpUtility]::ParseQueryString($web.Url.Query)
+        
+        $output = @{}
+        
+        foreach ($key in $queryOutput.Keys) 
         {
-            if( $line -match '[\}\]]' ) 
-            {
-                $indent--
-            }
-      
-            $null = $sb.AppendFormat( "{0}{1}{2}", (' ' * $indent * $NumberSpaces), $line.TrimStart().Replace(':  ', ': '), [System.Environment]::NewLine )
-             
-            if ($line -match '[\{\[]')
-            {
-                $indent++
-            }
+            $output["$key"] = $queryOutput[$key]
         }
 
-        $sb.ToString()
+        [pscustomobject]$output
     }
+}
+
+function Format-Json 
+{
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [String]
+        $json
+    ) 
+
+    $indent = 0;
+    $result = ($json -Split '\n' |
+            % {
+            if ($_ -match '[\}\]]') {
+                # This line contains ] or }, decrement the indentation level
+                $indent--
+            }
+            $line = (' ' * $indent * 2) + $_.TrimStart().Replace(': ', ': ')
+            if ($_ -match '[\{\[]') {
+                # This line contains [ or {, increment the indentation level
+                $indent++
+            }
+            $line
+        }) -Join "`n"
+    
+    # Unescape Html characters (<>&')
+    $result.Replace('\u0027', "'").Replace('\u003c', "<").Replace('\u003e', ">").Replace('\u0026', "&")
 }
 
 function New-ParameterFile 
@@ -48,11 +91,11 @@ function New-ParameterFile
     (
         [parameter(Mandatory=$false)]
         [string] 
-        $InputPath = (Join-Path $PSScriptRoot "azure-deploy.json"),
+        $InputPath = (Join-Path -Path $PSScriptRoot -ChildPath "azure-deploy.json"),
         
         [parameter(Mandatory=$false)]
         [string] 
-        $OutputPath = (Join-Path $PSScriptRoot "azure-deploy-paramters.json"),
+        $OutputPath = (Join-Path -Path $PSScriptRoot -ChildPath "azure-deploy-paramters.json"),
 
         [parameter(Mandatory=$false)]
         [switch] 
@@ -90,7 +133,7 @@ function New-ParameterFile
         # get the parameters section
         foreach( $parameter in $template.parameters.psobject.members | Where-Object -Property "MemberType" -eq "NoteProperty" )
         {
-            $isRequired = ($parameter.value | Get-Member | Where-Object -Property "Name" -eq "defaultValue") -eq $null
+            $isRequired = $null -eq ($parameter.value | Get-Member | Where-Object -Property "Name" -eq "defaultValue")
 
             if( $SkipOptionalParameters.IsPresent -and -not $isRequired )
             {
@@ -114,7 +157,7 @@ function New-ParameterFile
                     continue
                 }
 
-                $parameterObject | ConvertTo-Json -Depth 100 | Format-Json | Set-Content -Path $environmentOutputPath
+                $parameterObject | ConvertTo-Json -Depth 50 | Format-Json | Set-Content -Path $environmentOutputPath
             }
 
             return
@@ -132,7 +175,6 @@ function New-ParameterFile
     {
     }
 }
-
 function Set-DefaultParameterFileValue
 {
     [CmdletBinding()]
@@ -176,22 +218,3 @@ function Set-DefaultParameterFileValue
     {
     }
 }
-
-New-ParameterFile `
-    -InputPath  "$PSScriptRoot\resources\azure-deploy.json" `
-    -OutputPath "$PSScriptRoot\resources\azure-deploy-parameters.json" `
-    -Environment Production, Development, Test
-
-$parameters = @{
-    "clientId"               = $env:O365_CLIENTID
-    "tenantId"               = $env:O365_TENANTID
-    "certificateThumbprint"  = $env:O365_THUMBPRINT
-    "certificatePfxPassword" = $env:O365_CERT_PWD
-    "certificatePfxBase64"   = [System.Convert]::ToBase64String(( Get-Content -Path "$PSScriptRoot\resources\certificate.pfx" -Raw -Encoding Byte ))
-    "functionCode"           = (Get-Content -Path "$PSScriptRoot\resources\function.ps1" -Raw).ToString()
-}
-
-Set-DefaultParameterFileValue `
-    -Path  "$PSScriptRoot\resources\azure-deploy-parameters.development.json" `
-    -Value $parameters
-
