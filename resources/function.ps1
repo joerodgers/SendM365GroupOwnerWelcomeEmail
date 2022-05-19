@@ -156,7 +156,7 @@ param
         $json = [PSCustomObject] @{ 
                     OwnerEmailAddresses = ($emails -join ";")
                     SiteUrl             = $siteUrl
-                    DisplayName         = $group.DisplayName
+                    DisplayName         = $displayName
                 } | ConvertTo-Json -Depth 3
 
         try 
