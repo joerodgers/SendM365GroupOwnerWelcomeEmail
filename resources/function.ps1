@@ -26,7 +26,22 @@ param
     $groupId        = $QueueItem.GroupId
     $siteUrl        = $QueueItem.SiteUrl
     $pilotEmails    = @($env:PILOT_EMAIL_ADDRESSES -split ";")
-    $productionDate = [DateTime]::Parse( $env:PRODUCTION_DATE )
+
+    if( [string]::IsNullOrWhiteSpace( $env:PRODUCTION_DATE ) )
+    {
+        $productionDate = [DateTime]::Today.AddDays(1) # if no date defined in the config, assume in pilot
+    }
+    else
+    {
+        try
+        {
+            $productionDate = [DateTime]::Parse( $env:PRODUCTION_DATE )
+        }
+        catch
+        {
+            $productionDate = [DateTime]::Today.AddDays(1) # if bad date defined in the config, assume in pilot
+        }
+    }
 
     $telemetry.TrackTrace( "Function configuration:
                                 ClientId:       $clientId
@@ -82,14 +97,15 @@ param
     {
         try
         {
-            $group  = Get-MgGroup -GroupId $groupId 
-            $emails = @(Get-MgGroupOwner -GroupId $groupId -All -Property mail).AdditionalProperties.mail
+            $group  = Get-MgGroup -GroupId $groupId -ErrorAction Stop
+            $emails = @(Get-MgGroupOwner -GroupId $groupId -All -Property mail -ErrorAction Stop).AdditionalProperties.mail
    
             $telemetry.TrackTrace( "Retrieved $($emails.Count) group owners from Microsoft Graph" )
             $eventProperties.OwnerCount = $emails.Count
         }
         catch
         {
+            Write-Error "Failed to connect to query group data. Exception: $_"
             $telemetry.TrackException( $_.Exception )
         }        
     }
@@ -128,6 +144,13 @@ param
 
 # send email
 
+    $displayName = $group.DisplayName
+
+    if( [string]::IsNullOrWhiteSpace($displayName) )
+    {
+        $displayName = "GROUP NAME NOT FOUND"
+    }
+    
     if( $emails.Count -gt 0 )
     {
         $json = [PSCustomObject] @{ 

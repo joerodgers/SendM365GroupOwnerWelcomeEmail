@@ -243,6 +243,18 @@
             }
         },
         {
+            "name": "[concat(variables('functionAppName'), '/web')]",
+            "type": "Microsoft.Web/sites/config",
+            "apiVersion": "2021-03-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+            ],
+            "properties" : {
+                "use32BitWorkerProcess" : false
+            }
+        },
+        {
             "name": "[format('{0}/{1}', variables('functionAppName'), variables('functionName'))]",
             "type": "Microsoft.Web/sites/functions",
             "apiVersion": "2020-12-01",
@@ -431,9 +443,23 @@
                                 ]
                             }
                         },
-                        "Put_a_message_on_a_queue_(V2)": {
+                        "Delay": {
                             "runAfter": {
                                 "Initialize_-_Azure_Queue_Message": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Wait",
+                            "inputs": {
+                                "interval": {
+                                    "count": 30,
+                                    "unit": "Second"
+                                }
+                            }
+                        },
+                        "Put_a_message_on_a_queue_(V2)": {
+                            "runAfter": {
+                                "Delay": [
                                     "Succeeded"
                                 ]
                             },
