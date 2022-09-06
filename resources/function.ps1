@@ -92,22 +92,40 @@ param
 # get group owners
 
     $emails = @()
+    $displayName = "GROUP NAME NOT FOUND"
 
     if( [Microsoft.Graph.PowerShell.Authentication.GraphSession]::Exists )
     {
-        try
+        # mitigate group properties not being returned from Graph after intial creation, try up to 5 times to 
+        # retrieve values after a 5 second pause
+        for( $x = 0; $x -lt 5; $x++ )
         {
-            $group  = Get-MgGroup -GroupId $groupId -ErrorAction Stop
-            $emails = @(Get-MgGroupOwner -GroupId $groupId -All -Property mail -ErrorAction Stop).AdditionalProperties.mail
-   
-            $telemetry.TrackTrace( "Retrieved $($emails.Count) group owners from Microsoft Graph" )
-            $eventProperties.OwnerCount = $emails.Count
+            try
+            {
+                $telemetry.TrackTrace( "Retrieving group properties for group id $groupId." )
+
+                $group  = Get-MgGroup -GroupId $groupId -ErrorAction Stop
+                $emails = @(Get-MgGroupOwner -GroupId $groupId -All -Property mail -ErrorAction Stop).AdditionalProperties.mail
+    
+                if( -not [string]::IsNullOrWhiteSpace($group.DisplayName) )
+                {
+                    $telemetry.TrackTrace( "Retrieved $($emails.Count) group owners from Microsoft Graph" )
+                    $eventProperties.OwnerCount = $emails.Count
+
+                    $displayName = $group.DisplayName
+
+                    break
+                }
+            }
+            catch
+            {
+                Write-Error "Failed to connect to query group data. Exception: $_"
+                $telemetry.TrackException( $_.Exception )
+            }
+
+            Start-Sleep -Seconds 5
         }
-        catch
-        {
-            Write-Error "Failed to connect to query group data. Exception: $_"
-            $telemetry.TrackException( $_.Exception )
-        }        
+
     }
 
 
@@ -144,13 +162,6 @@ param
 
 # send email
 
-    $displayName = $group.DisplayName
-
-    if( [string]::IsNullOrWhiteSpace($displayName) )
-    {
-        $displayName = "GROUP NAME NOT FOUND"
-    }
-    
     if( $emails.Count -gt 0 )
     {
         $json = [PSCustomObject] @{ 
