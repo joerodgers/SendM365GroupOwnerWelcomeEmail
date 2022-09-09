@@ -173,7 +173,7 @@
             "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('applicationName'))]",
                 "siteConfig": {
-                    "powerShellVersion": "~7",
+                    "powerShellVersion": "7.2",
                     "appSettings": [
                         {
                             "name": "AzureWebJobsStorage",
